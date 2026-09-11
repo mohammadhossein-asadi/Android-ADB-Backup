@@ -1,0 +1,6 @@
+Backups/
+Logs/
+*.log
+Backup_State.json
+Thumbs.db
+desktop.ini
