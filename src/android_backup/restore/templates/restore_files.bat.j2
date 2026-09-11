@@ -1,0 +1,51 @@
+@echo off
+setlocal EnableExtensions
+title Android Backup - Restore Files
+cd /d "%~dp0"
+
+set "ADB={{ adb_path }}"
+set "SERIAL={{ serial }}"
+
+if not exist "%ADB%" (
+    echo [ERROR] adb.exe not found at: %ADB%
+    pause
+    exit /b 1
+)
+
+echo.
+echo ============================================================
+echo  Android Storage Restore (from this backup)
+echo  Device serial: %SERIAL%
+echo  This pushes files back; it does NOT delete device data.
+echo ============================================================
+echo.
+
+"%ADB%" start-server >nul 2>&1
+"%ADB%" -s %SERIAL% get-state 2>nul | findstr /i "device" >nul
+if errorlevel 1 (
+    echo [ERROR] Device %SERIAL% is not ready.
+    pause
+    exit /b 1
+)
+
+set "FILESROOT=%~dp0..\Files"
+if not exist "%FILESROOT%" (
+    echo [WARN] Files folder not found. Nothing to restore.
+    pause
+    exit /b 0
+)
+
+if exist "%FILESROOT%\Internal_Storage" (
+    echo [PUSH] Internal_Storage ...
+    "%ADB%" -s %SERIAL% push "%FILESROOT%\Internal_Storage\." /sdcard/
+)
+
+if exist "%FILESROOT%\Full_Internal_Storage" (
+    echo [PUSH] Full_Internal_Storage ...
+    "%ADB%" -s %SERIAL% push "%FILESROOT%\Full_Internal_Storage\." /sdcard/
+)
+
+echo.
+echo [OK] File restore pass finished.
+pause
+endlocal

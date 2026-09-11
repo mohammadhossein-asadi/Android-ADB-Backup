@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ADB="{{ adb_path }}"
+SERIAL="{{ serial }}"
+
+if [[ ! -f "$ADB" ]]; then
+    echo "[ERROR] adb not found at: $ADB"
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+echo
+echo "============================================================"
+echo "  Android Storage Restore (from this backup)"
+echo "  Device serial: $SERIAL"
+echo "  This pushes files back; it does NOT delete device data."
+echo "============================================================"
+echo
+
+"$ADB" start-server >/dev/null 2>&1
+if ! "$ADB" -s "$SERIAL" get-state 2>/dev/null | grep -q "device"; then
+    echo "[ERROR] Device $SERIAL is not ready."
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+FILESROOT="$(dirname "$0")/../Files"
+if [[ ! -d "$FILESROOT" ]]; then
+    echo "[WARN] Files folder not found. Nothing to restore."
+    read -p "Press Enter to exit..."
+    exit 0
+fi
+
+if [[ -d "$FILESROOT/Internal_Storage" ]]; then
+    echo "[PUSH] Internal_Storage ..."
+    "$ADB" -s "$SERIAL" push "$FILESROOT/Internal_Storage/." /sdcard/
+fi
+
+if [[ -d "$FILESROOT/Full_Internal_Storage" ]]; then
+    echo "[PUSH] Full_Internal_Storage ..."
+    "$ADB" -s "$SERIAL" push "$FILESROOT/Full_Internal_Storage/." /sdcard/
+fi
+
+echo
+echo "[OK] File restore pass finished."
+read -p "Press Enter to exit..."

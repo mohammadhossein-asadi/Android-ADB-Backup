@@ -1,0 +1,79 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+title Android Backup - Restore Apps
+cd /d "%~dp0"
+
+set "ADB={{ adb_path }}"
+set "SERIAL={{ serial }}"
+
+if not exist "%ADB%" (
+    echo [ERROR] adb.exe not found at: %ADB%
+    echo Place platform-tools next to this script or edit ADB path.
+    pause
+    exit /b 1
+)
+
+echo.
+echo ============================================================
+echo  Android App Restore (from this backup)
+echo  Device serial: %SERIAL%
+echo  This script does NOT uninstall or wipe existing apps.
+echo ============================================================
+echo.
+
+"%ADB%" start-server >nul 2>&1
+"%ADB%" -s %SERIAL% get-state 2>nul | findstr /i "device" >nul
+if errorlevel 1 (
+    echo [ERROR] Device %SERIAL% is not ready. Authorize USB debugging and retry.
+    pause
+    exit /b 1
+)
+
+set "APKROOT=%~dp0..\APKs"
+if not exist "%APKROOT%" (
+    echo [ERROR] APKs folder not found: %APKROOT%
+    pause
+    exit /b 1
+)
+
+for /d %%D in ("%APKROOT%\*") do (
+    set "PKG=%%~nxD"
+    echo.
+    echo [INFO] Package: !PKG!
+    set "BASE="
+    set "SPLITS="
+    set "COUNT=0"
+    for %%F in ("%%D\*.apk") do (
+        set /a COUNT+=1
+        if /i "%%~nxF"=="base.apk" (
+            set "BASE=%%F"
+        ) else (
+            set "SPLITS=!SPLITS! "%%F""
+        )
+    )
+    if !COUNT! equ 0 (
+        echo [SKIP] No APK files in %%D
+    ) else if !COUNT! equ 1 (
+        if defined BASE (
+            echo [INSTALL] Single APK: !BASE!
+            "%ADB%" -s %SERIAL% install -r -t "!BASE!"
+        ) else (
+            for %%F in ("%%D\*.apk") do (
+                echo [INSTALL] Single APK: %%F
+                "%ADB%" -s %SERIAL% install -r -t "%%F"
+            )
+        )
+    ) else (
+        echo [INSTALL-MULTIPLE] !COUNT! APKs for !PKG!
+        if defined BASE (
+            "%ADB%" -s %SERIAL% install-multiple -r -t "!BASE!" !SPLITS!
+        ) else (
+            "%ADB%" -s %SERIAL% install-multiple -r -t !SPLITS!
+        )
+    )
+)
+
+echo.
+echo [OK] App restore pass finished.
+pause
+endlocal

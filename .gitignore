@@ -1,6 +1,23 @@
+# Android ADB Backup Utility
+
 Backups/
 Logs/
 *.log
 Backup_State.json
 Thumbs.db
 desktop.ini
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+*.egg-info/
+pip-wheel-metadata/
