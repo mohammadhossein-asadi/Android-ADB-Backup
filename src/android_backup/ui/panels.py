@@ -1,13 +1,9 @@
 """Status panels for device info, summary, errors."""
 
+
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.align import Align
-from pathlib import Path
-from typing import Any
-
-from .console import console
 
 
 def create_device_panel(device_info: dict, serial: str, connected: bool = True) -> Panel:

@@ -1,6 +1,5 @@
 """Custom exception hierarchy for Android ADB Backup."""
 
-from typing import Optional
 
 
 class AndroidBackupError(Exception):

@@ -1,13 +1,10 @@
 """Backup state management for resume capability."""
 
 import json
-import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-
-from ..utils import sanitize_filename
 
 
 @dataclass

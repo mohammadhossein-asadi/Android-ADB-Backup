@@ -1,8 +1,8 @@
 """Cross-platform filesystem utilities."""
 
+import os
 from pathlib import Path
 from typing import Union
-import os
 
 
 def ensure_dir(path: Union[str, Path]) -> Path:

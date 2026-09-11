@@ -1,44 +1,37 @@
 """Main backup orchestration engine."""
 
-import asyncio
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from ..adb import ADBDiscovery, ADBClient, DeviceManager, ADBCommands
+from rich.table import Table
+
+from ..adb import ADBClient, ADBCommands, ADBDiscovery, DeviceManager
 from ..backup import (
-    DeviceInfoBackup,
-    PackageBackup,
-    StorageBackup,
-    COMMON_FOLDERS,
     BackupState,
-    PackageEntry,
+    PackageBackup,
     StateManager,
+    StorageBackup,
 )
-from ..restore import RestoreGenerator
-from ..report import ReportGenerator
 from ..config import Config
-from ..utils import format_bytes, format_duration
 from ..exceptions import (
     ADBNotFoundError,
-    NoDeviceError,
-    DeviceUnauthorizedError,
     BackupDirectoryError,
+    DeviceUnauthorizedError,
+    NoDeviceError,
     StateError,
 )
+from ..report import ReportGenerator
+from ..restore import RestoreGenerator
 from ..ui import (
-    console,
     BackupProgress,
-    create_device_panel,
-    create_summary_panel,
-    create_final_summary_table,
-    create_failed_packages_table,
-    select_device,
     confirm_resume,
-    confirm_full_sdcard,
+    console,
+    create_failed_packages_table,
+    create_final_summary_table,
 )
+from ..utils import format_duration
 
 
 class BackupEngine:
@@ -293,7 +286,7 @@ class BackupEngine:
 
             if self.progress:
                 self.progress.update_package(idx, len(third_party), package)
-                self.progress.update_overall(idx, len(third_party), f"[primary]Backing up packages")
+                self.progress.update_overall(idx, len(third_party), "[primary]Backing up packages")
 
             # Backup package
             result = await pkg_backup.backup_package(

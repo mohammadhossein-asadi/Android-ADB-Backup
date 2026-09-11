@@ -1,10 +1,8 @@
 """Table components for package listing, final summary."""
 
+
 from rich.table import Table
 from rich.text import Text
-from typing import Any
-
-from .console import console
 
 
 def create_package_table(packages: list[dict]) -> Table:

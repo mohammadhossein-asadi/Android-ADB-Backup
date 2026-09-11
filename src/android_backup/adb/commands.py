@@ -1,6 +1,5 @@
 """ADB command helpers - typed wrappers for common ADB operations."""
 
-from typing import Optional
 from pathlib import Path
 
 from .client import ADBClient, ADBResult

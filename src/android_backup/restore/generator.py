@@ -1,7 +1,6 @@
 """Restore script generator - cross-platform."""
 
 from pathlib import Path
-from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 

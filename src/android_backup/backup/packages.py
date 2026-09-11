@@ -7,7 +7,7 @@ from typing import Optional
 
 from ..adb import ADBCommands
 from ..utils import validate_apk
-from .state import PackageEntry, APKEntry
+from .state import APKEntry, PackageEntry
 
 
 @dataclass

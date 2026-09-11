@@ -1,12 +1,9 @@
 """ADB client - async subprocess wrapper with timeout and retries."""
 
 import asyncio
-import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-
-from ..exceptions import ADBError
 
 
 @dataclass

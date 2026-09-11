@@ -8,11 +8,10 @@ from typing import Optional
 import click
 from rich.console import Console
 
-from .config import Config
-from .backup.engine import BackupEngine
-from .exceptions import AndroidBackupError
 from ._version import __version__
-
+from .backup.engine import BackupEngine
+from .config import Config
+from .exceptions import AndroidBackupError
 
 # Create console for CLI output
 cli_console = Console()

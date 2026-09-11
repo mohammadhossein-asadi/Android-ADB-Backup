@@ -1,9 +1,10 @@
 """Device detection and selection."""
 
+import asyncio
 from dataclasses import dataclass
 from typing import Optional
 
-from .client import ADBClient, ADBResult
+from .client import ADBClient
 
 
 @dataclass

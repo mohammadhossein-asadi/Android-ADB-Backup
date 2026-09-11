@@ -1,9 +1,9 @@
 """ADB package initialization."""
 
-from .discovery import ADBDiscovery
 from .client import ADBClient, ADBResult
-from .device import Device, DeviceManager
 from .commands import ADBCommands
+from .device import Device, DeviceManager
+from .discovery import ADBDiscovery
 
 __all__ = [
     'ADBDiscovery',

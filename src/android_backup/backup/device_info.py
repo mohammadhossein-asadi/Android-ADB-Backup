@@ -1,7 +1,6 @@
 """Device info backup module."""
 
 from pathlib import Path
-from typing import Any
 
 from ..adb import ADBCommands
 

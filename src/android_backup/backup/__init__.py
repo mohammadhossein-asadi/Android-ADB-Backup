@@ -2,15 +2,15 @@
 
 from .device_info import DeviceInfoBackup
 from .packages import PackageBackup, PullResult
-from .storage import StorageBackup, COMMON_FOLDERS
 from .state import (
-    BackupState,
-    PackageEntry,
     APKEntry,
-    StorageEntry,
+    BackupState,
     BackupStats,
+    PackageEntry,
     StateManager,
+    StorageEntry,
 )
+from .storage import COMMON_FOLDERS, StorageBackup
 
 __all__ = [
     'DeviceInfoBackup',

@@ -3,7 +3,6 @@
 from rich.console import Console
 from rich.theme import Theme
 
-
 # Custom theme for the backup utility
 BACKUP_THEME = Theme({
     # Primary colors

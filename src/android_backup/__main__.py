@@ -1,6 +1,6 @@
-"""Main entry point."""
+"""Main entry point for PyInstaller executable."""
 
-from .cli import main
+from android_backup.cli import main
 
 if __name__ == '__main__':
     main()

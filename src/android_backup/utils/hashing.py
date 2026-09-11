@@ -13,7 +13,7 @@ def compute_sha256(file_path: Path) -> Optional[str]:
             for chunk in iter(lambda: f.read(8192), b''):
                 hasher.update(chunk)
         return hasher.hexdigest()
-    except (OSError, IOError):
+    except OSError:
         return None
 
 
@@ -23,7 +23,7 @@ def is_valid_apk(file_path: Path) -> bool:
         with file_path.open('rb') as f:
             magic = f.read(4)
             return magic == b'PK\x03\x04'
-    except (OSError, IOError):
+    except OSError:
         return False
 
 

@@ -5,8 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from ..utils import find_adb_candidates
 from ..exceptions import ADBNotFoundError
+from ..utils import find_adb_candidates
 
 
 class ADBDiscovery:

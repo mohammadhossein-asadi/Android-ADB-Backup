@@ -3,7 +3,6 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ..backup.state import BackupState
 

@@ -1,15 +1,16 @@
 """Interactive prompts for device selection, confirmations."""
 
-from rich.prompt import Prompt, Confirm
+from typing import Optional
+
 from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
 from rich.text import Text
-from typing import Optional, List
 
-from .console import console
 from ..adb import Device
+from .console import console
 
 
-def select_device(devices: List[Device], preferred: Optional[str] = None) -> Optional[Device]:
+def select_device(devices: list[Device], preferred: Optional[str] = None) -> Optional[Device]:
     """Interactive device selection."""
     if not devices:
         return None

@@ -6,7 +6,6 @@ from typing import Optional
 from ..adb import ADBCommands
 from .state import StorageEntry
 
-
 # Common storage folders to backup
 COMMON_FOLDERS = [
     ("/sdcard/DCIM", "DCIM"),
