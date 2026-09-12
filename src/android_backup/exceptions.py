@@ -19,7 +19,16 @@ class ADBError(AndroidBackupError):
 
 class ADBNotFoundError(ADBError):
     """ADB executable not found."""
-    def __init__(self, message: str = "ADB executable not found. Install Android Platform Tools and ensure 'adb' is in PATH."):
+    def __init__(
+        self,
+        message: str = (
+            "ADB executable not found. The tool tried automatic setup first. "
+            "Install Android Platform Tools from "
+            "https://developer.android.com/tools/releases/platform-tools "
+            "and ensure 'adb' is in your PATH, place adb next to the executable, "
+            "or pass --adb-path <path>. Use --no-auto-adb to disable auto-download."
+        ),
+    ):
         super().__init__(message, exit_code=3)
 
 

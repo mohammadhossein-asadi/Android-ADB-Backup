@@ -41,12 +41,18 @@ BACKUP_THEME = Theme({
 
 
 def create_console(color_system: str = "auto", force_terminal: bool = True) -> Console:
-    """Create configured Rich console."""
+    """Create configured Rich console.
+
+    legacy_windows=False uses WriteConsoleW so Unicode progress bars,
+    spinners and status glyphs render on cmd.exe / PowerShell /
+    Windows Terminal instead of crashing with cp1252 encode errors.
+    """
     return Console(
         theme=BACKUP_THEME,
         color_system=color_system,
         force_terminal=force_terminal,
         highlight=False,
+        legacy_windows=False,
     )
 
 

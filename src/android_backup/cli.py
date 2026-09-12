@@ -13,8 +13,8 @@ from .backup.engine import BackupEngine
 from .config import Config
 from .exceptions import AndroidBackupError
 
-# Create console for CLI output
-cli_console = Console()
+# Create console for CLI output (legacy_windows=False for Unicode-safe Windows output)
+cli_console = Console(legacy_windows=False)
 
 
 @click.command()
@@ -41,6 +41,10 @@ cli_console = Console()
               help='ADB command timeout in seconds')
 @click.option('--max-retries', type=int, default=3,
               help='Maximum retry attempts for failed pulls')
+@click.option('--adb-path', type=click.Path(path_type=Path), default=None,
+              help='Explicit path to adb executable (overrides auto-detection)')
+@click.option('--no-auto-adb', is_flag=True, default=False,
+              help='Do not automatically download platform-tools if adb is missing')
 
 # Config
 @click.option('--config', type=click.Path(path_type=Path), default=None,
@@ -63,6 +67,8 @@ def main(
     verify_only: bool,
     adb_timeout: int,
     max_retries: int,
+    adb_path: Optional[Path],
+    no_auto_adb: bool,
     config: Optional[Path],
     no_color: bool,
     quiet: bool,
@@ -83,6 +89,10 @@ def main(
 
     cfg.backup.adb_timeout = adb_timeout
     cfg.backup.max_retries = max_retries
+    if adb_path:
+        cfg.adb.preferred_path = str(adb_path)
+    if no_auto_adb:
+        cfg.adb.auto_install = False
 
     # Create engine
     engine = BackupEngine(cfg, whatif=whatif, verify_only=verify_only)

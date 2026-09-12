@@ -32,6 +32,7 @@ class UIConfig:
 class ADBConfig:
     """ADB configuration."""
     preferred_path: str = ""
+    auto_install: bool = True
 
 
 @dataclass
@@ -71,6 +72,7 @@ class Config:
                 if 'adb' in data:
                     a = data['adb']
                     config.adb.preferred_path = a.get('preferred_path', config.adb.preferred_path)
+                    config.adb.auto_install = bool(a.get('auto_install', config.adb.auto_install))
 
             except Exception:
                 pass  # Use defaults on error
@@ -100,8 +102,29 @@ class Config:
             },
             'adb': {
                 'preferred_path': self.adb.preferred_path,
+                'auto_install': self.adb.auto_install,
             },
         }
 
-        with config_path.open('wb') as f:
-            tomli_w.dump(data, f)
+        try:
+            import tomli_w
+
+            with config_path.open('wb') as f:
+                tomli_w.dump(data, f)
+        except ImportError:
+            # Minimal fallback when tomli-w is not installed
+            lines = [
+                "[backup]",
+                f"root = \"{data['backup']['root']}\"",
+                f"adb_timeout = {data['backup']['adb_timeout']}",
+                f"max_retries = {data['backup']['max_retries']}",
+                "",
+                "[ui]",
+                f"theme = \"{data['ui']['theme']}\"",
+                "",
+                "[adb]",
+                f"preferred_path = \"{data['adb']['preferred_path']}\"",
+                f"auto_install = {'true' if data['adb']['auto_install'] else 'false'}",
+                "",
+            ]
+            config_path.write_text("\n".join(lines), encoding="utf-8")

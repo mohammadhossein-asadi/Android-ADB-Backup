@@ -38,6 +38,42 @@ def get_config_dir() -> Path:
     return base / 'android-backup'
 
 
+PLATFORM_TOOLS_URLS = {
+    'windows': 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip',
+    'darwin': 'https://dl.google.com/android/repository/platform-tools-latest-darwin.zip',
+    'linux': 'https://dl.google.com/android/repository/platform-tools-latest-linux.zip',
+}
+
+
+def get_platform_tools_url() -> tuple[str, str]:
+    """Return (os_key, download_url) for current platform."""
+    import sys
+
+    if sys.platform.startswith('win'):
+        key = 'windows'
+    elif sys.platform == 'darwin':
+        key = 'darwin'
+    else:
+        key = 'linux'
+    return key, PLATFORM_TOOLS_URLS[key]
+
+
+def get_adb_cache_dir() -> Path:
+    """Directory where auto-downloaded platform-tools is stored."""
+    if os.name == 'nt':
+        base = Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local'))
+        return base / 'Android-Backup' / 'platform-tools'
+    # macOS / Linux: XDG cache
+    base = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache'))
+    return base / 'android-backup' / 'platform-tools'
+
+
+def get_cached_adb_path() -> Path:
+    """Expected adb binary inside the auto-download cache dir."""
+    cache_dir = get_adb_cache_dir()
+    return cache_dir / ('adb.exe' if os.name == 'nt' else 'adb')
+
+
 def find_adb_candidates() -> list[Path]:
     """Get platform-specific ADB search paths."""
     candidates = []

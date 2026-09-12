@@ -1,6 +1,8 @@
 """Main backup orchestration engine."""
 
+import asyncio
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -154,15 +156,61 @@ class BackupEngine:
                 self.progress.stop()
 
     async def _discover_adb(self) -> None:
-        """Discover ADB executable."""
-        discovery = ADBDiscovery(self.config.adb.preferred_path)
-        self.adb_path = discovery.find()
+        """Discover ADB executable, auto-downloading platform-tools when missing."""
+        preferred = self.config.adb.preferred_path or None
+        auto_install = bool(self.config.adb.auto_install)
+        discovery = ADBDiscovery(preferred, auto_install=auto_install)
+
+        try:
+            self.adb_path = discovery.find(auto_install=False)
+        except ADBNotFoundError:
+            if not auto_install:
+                raise
+            console.print("[warning]ADB executable not found.[/]")
+            console.print("[info]Downloading Android platform-tools automatically (Google, ~15MB)...[/]")
+            self.adb_path = await self._download_adb_with_progress(discovery)
+            console.print(f"[success]ADB ready: [path]{self.adb_path}[/]")
+
         self.client = ADBClient(self.adb_path, self.config.backup.adb_timeout)
         self.commands = ADBCommands(self.client)
         self.device_manager = DeviceManager(self.client)
 
         version = await self.client.get_version()
         console.print(f"[info]Using ADB: [path]{self.adb_path}[/] ([secondary]{version}[/])")
+
+    async def _download_adb_with_progress(self, discovery: ADBDiscovery) -> Path:
+        """Download platform-tools with terminal-safe ASCII progress.
+
+        Rich Live rendering must stay on the event-loop thread; the download
+        itself runs in a worker thread. The callback therefore uses plain
+        ``print`` with carriage return (ASCII only) which is safe on cmd.exe,
+        PowerShell and Windows Terminal with any code page.
+        """
+        last_shown_mb = -1.0
+
+        def _callback(downloaded: int, total: int) -> None:
+            nonlocal last_shown_mb
+            done_mb = downloaded / (1024 * 1024)
+            # Throttle to 0.5 MB steps to avoid flooding the terminal
+            if done_mb - last_shown_mb < 0.5 and (not total or downloaded < total):
+                return
+            last_shown_mb = done_mb
+            if total:
+                total_mb = total / (1024 * 1024)
+                print(f"\rDownloading platform-tools... {done_mb:.1f}/{total_mb:.1f} MB", end="", flush=True)
+            else:
+                print(f"\rDownloading platform-tools... {done_mb:.1f} MB", end="", flush=True)
+
+        try:
+            result = await asyncio.to_thread(discovery.download_platform_tools, _callback)
+        finally:
+            # Finish the carriage-return line cleanly before Rich output resumes
+            try:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+            except OSError:
+                pass
+        return result
 
     async def _select_device(self) -> None:
         """Select target device."""

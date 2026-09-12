@@ -40,8 +40,11 @@ pipx install android-adb-backup
 ### Requirements
 
 - **Android device** with USB debugging enabled
-- **ADB** (Android Debug Bridge) installed and in PATH, or placed next to the executable
 - **Python 3.9+** (for pip install) — *not needed for standalone executable*
+- **ADB is automatic** — if `adb` is missing, the tool downloads official Google platform-tools (~8–15MB) on first run and caches it:
+  - Windows: `%LOCALAPPDATA%\Android-Backup\platform-tools\adb.exe`
+  - macOS/Linux: `~/.cache/android-backup/platform-tools/adb`
+  - Override with `--adb-path <path>`, disable with `--no-auto-adb` or `ANDROID_BACKUP_NO_AUTO_ADB=1`
 
 ### Usage
 
