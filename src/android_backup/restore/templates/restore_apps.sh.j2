@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ADB="{{ adb_path }}"
+SERIAL="{{ serial }}"
+
+if [[ ! -f "$ADB" ]]; then
+    echo "[ERROR] adb not found at: $ADB"
+    echo "Place platform-tools next to this script or edit ADB path."
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+echo
+echo "============================================================"
+echo "  Android App Restore (from this backup)"
+echo "  Device serial: $SERIAL"
+echo "  This script does NOT uninstall or wipe existing apps."
+echo "============================================================"
+echo
+
+"$ADB" start-server >/dev/null 2>&1
+if ! "$ADB" -s "$SERIAL" get-state 2>/dev/null | grep -q "device"; then
+    echo "[ERROR] Device $SERIAL is not ready. Authorize USB debugging and retry."
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+APKROOT="$(dirname "$0")/../APKs"
+if [[ ! -d "$APKROOT" ]]; then
+    echo "[ERROR] APKs folder not found: $APKROOT"
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+for pkg_dir in "$APKROOT"/*/; do
+    [[ -d "$pkg_dir" ]] || continue
+    PKG=$(basename "$pkg_dir")
+    echo
+    echo "[INFO] Package: $PKG"
+
+    BASE=""
+    SPLITS=()
+    COUNT=0
+
+    for apk in "$pkg_dir"/*.apk; do
+        [[ -f "$apk" ]] || continue
+        ((COUNT++))
+        if [[ $(basename "$apk") == "base.apk" ]]; then
+            BASE="$apk"
+        else
+            SPLITS+=("$apk")
+        fi
+    done
+
+    if [[ $COUNT -eq 0 ]]; then
+        echo "[SKIP] No APK files in $pkg_dir"
+    elif [[ $COUNT -eq 1 ]]; then
+        if [[ -n "$BASE" ]]; then
+            echo "[INSTALL] Single APK: $BASE"
+            "$ADB" -s "$SERIAL" install -r -t "$BASE"
+        else
+            for apk in "$pkg_dir"/*.apk; do
+                echo "[INSTALL] Single APK: $apk"
+                "$ADB" -s "$SERIAL" install -r -t "$apk"
+            done
+        fi
+    else
+        echo "[INSTALL-MULTIPLE] $COUNT APKs for $PKG"
+        if [[ -n "$BASE" ]]; then
+            "$ADB" -s "$SERIAL" install-multiple -r -t "$BASE" "${SPLITS[@]}"
+        else
+            "$ADB" -s "$SERIAL" install-multiple -r -t "${SPLITS[@]}"
+        fi
+    fi
+done
+
+echo
+echo "[OK] App restore pass finished."
+read -p "Press Enter to exit..."
