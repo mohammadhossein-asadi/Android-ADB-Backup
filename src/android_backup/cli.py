@@ -22,7 +22,7 @@ cli_console = Console(legacy_windows=False)
 
 # Backup options
 @click.option('--backup-root', type=click.Path(path_type=Path), default=None,
-              help='Root directory for backups (default: ~/AndroidBackups)')
+              help='Root directory for backups (default: project-relative ./backups or ~/AndroidBackups)')
 @click.option('--device-serial', type=str, default=None,
               help='Target device serial (default: auto-detect)')
 @click.option('--backup-name', type=str, default=None,
@@ -45,6 +45,30 @@ cli_console = Console(legacy_windows=False)
               help='Explicit path to adb executable (overrides auto-detection)')
 @click.option('--no-auto-adb', is_flag=True, default=False,
               help='Do not automatically download platform-tools if adb is missing')
+
+# Package selection options
+@click.option('--include-packages', type=str, default=None,
+              help='Comma-separated package name patterns to include (supports wildcards, e.g., "com.whatsapp,com.telegram*")')
+@click.option('--exclude-packages', type=str, default=None,
+              help='Comma-separated package name patterns to exclude (supports wildcards, e.g., "*.test,*.debug")')
+@click.option('--fetch-display-names/--no-fetch-display-names', default=True,
+              help='Fetch and store human-readable app display names')
+
+# Storage selection options
+@click.option('--include-storage', type=str, default=None,
+              help='Comma-separated storage folder names to include (e.g., "DCIM,Pictures")')
+@click.option('--exclude-storage', type=str, default=None,
+              help='Comma-separated storage folder names to exclude (e.g., "cache,temp")')
+@click.option('--custom-storage', type=str, default=None,
+              help='Custom storage folders as "remote:local" pairs (e.g., "/sdcard/MyFolder:MyFolder")')
+
+# Scheduling options (for future daemon mode)
+@click.option('--schedule-enabled', is_flag=True, default=False,
+              help='Enable scheduled backups (requires daemon mode)')
+@click.option('--schedule-cron', type=str, default=None,
+              help='Cron expression for scheduled backups (e.g., "0 2 * * *" for daily at 2am)')
+@click.option('--schedule-interval-hours', type=int, default=0,
+              help='Run backup every N hours (0 to disable)')
 
 # Config
 @click.option('--config', type=click.Path(path_type=Path), default=None,
@@ -69,6 +93,15 @@ def main(
     max_retries: int,
     adb_path: Optional[Path],
     no_auto_adb: bool,
+    include_packages: Optional[str],
+    exclude_packages: Optional[str],
+    fetch_display_names: bool,
+    include_storage: Optional[str],
+    exclude_storage: Optional[str],
+    custom_storage: Optional[str],
+    schedule_enabled: bool,
+    schedule_cron: Optional[str],
+    schedule_interval_hours: int,
     config: Optional[Path],
     no_color: bool,
     quiet: bool,
@@ -93,6 +126,34 @@ def main(
         cfg.adb.preferred_path = str(adb_path)
     if no_auto_adb:
         cfg.adb.auto_install = False
+
+    # Package selection options
+    if include_packages:
+        cfg.backup.package_selection.include_patterns = [p.strip() for p in include_packages.split(',') if p.strip()]
+    if exclude_packages:
+        cfg.backup.package_selection.exclude_patterns = [p.strip() for p in exclude_packages.split(',') if p.strip()]
+    cfg.backup.package_selection.fetch_display_names = fetch_display_names
+
+    # Storage selection options
+    if include_storage:
+        cfg.backup.storage_selection.include_folders = [s.strip() for s in include_storage.split(',') if s.strip()]
+    if exclude_storage:
+        cfg.backup.storage_selection.exclude_folders = [s.strip() for s in exclude_storage.split(',') if s.strip()]
+    if custom_storage:
+        custom_folders = []
+        for pair in custom_storage.split(','):
+            pair = pair.strip()
+            if ':' in pair:
+                remote, local = pair.split(':', 1)
+                custom_folders.append((remote.strip(), local.strip()))
+        cfg.backup.storage_selection.custom_folders = custom_folders
+
+    # Scheduling options
+    cfg.backup.schedule.enabled = schedule_enabled
+    if schedule_cron:
+        cfg.backup.schedule.cron_expression = schedule_cron
+    if schedule_interval_hours:
+        cfg.backup.schedule.run_interval_hours = schedule_interval_hours
 
     # Create engine
     engine = BackupEngine(cfg, whatif=whatif, verify_only=verify_only)

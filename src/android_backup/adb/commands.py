@@ -87,3 +87,29 @@ class ADBCommands:
     ) -> ADBResult:
         """Pull a folder recursively."""
         return await self.client.pull(serial, remote, str(local), timeout=timeout)
+
+    async def get_package_display_name(self, serial: str, package: str) -> str:
+        """Get the human-readable display name for a package."""
+        # Use dumpsys to get package info and extract the label
+        result = await self.client.run_shell(serial, 'dumpsys', 'package', package)
+        if not result.success or not result.output_lines:
+            return ""
+
+        for line in result.output_lines:
+            line = line.strip()
+            # Look for label= in the output (format: label=Display Name)
+            if 'label=' in line and 'labelRes=' not in line:
+                # Extract the label value
+                parts = line.split('label=')
+                if len(parts) > 1:
+                    label = parts[1].split()[0].strip()
+                    if label and label != package:
+                        return label
+            # Also check for applicationInfo.labelRes= which might have the label
+            if 'applicationInfo.labelRes=' in line:
+                parts = line.split('applicationInfo.labelRes=')
+                if len(parts) > 1:
+                    label = parts[1].split()[0].strip()
+                    if label and label != package:
+                        return label
+        return ""

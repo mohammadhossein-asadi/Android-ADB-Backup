@@ -1,6 +1,7 @@
 """Package and APK backup module."""
 
 import asyncio
+import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -25,10 +26,43 @@ class PullResult:
 class PackageBackup:
     """Handle package listing and APK backup."""
 
-    def __init__(self, commands: ADBCommands, max_retries: int = 3, adb_timeout: int = 120):
+    def __init__(
+        self,
+        commands: ADBCommands,
+        max_retries: int = 3,
+        adb_timeout: int = 120,
+        include_patterns: Optional[list[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
+        fetch_display_names: bool = True
+    ):
         self.commands = commands
         self.max_retries = max_retries
         self.adb_timeout = adb_timeout
+        self.include_patterns = include_patterns or []
+        self.exclude_patterns = exclude_patterns or []
+        self.fetch_display_names = fetch_display_names
+
+    def _should_backup_package(self, package: str) -> bool:
+        """Check if a package should be backed up based on include/exclude patterns."""
+        # If include patterns specified, package must match at least one
+        if self.include_patterns:
+            matched = any(fnmatch.fnmatch(package, pattern) for pattern in self.include_patterns)
+            if not matched:
+                return False
+        # If exclude patterns specified, package must not match any
+        if self.exclude_patterns:
+            if any(fnmatch.fnmatch(package, pattern) for pattern in self.exclude_patterns):
+                return False
+        return True
+
+    async def _fetch_display_name(self, serial: str, package: str) -> str:
+        """Fetch display name for a package."""
+        if not self.fetch_display_names:
+            return ""
+        try:
+            return await self.commands.get_package_display_name(serial, package)
+        except Exception:
+            return ""
 
     async def list_packages(self, serial: str) -> tuple[list[str], list[str], list[str]]:
         """List all, third-party, and system packages."""
@@ -98,6 +132,13 @@ class PackageBackup:
         state_entry: Optional[PackageEntry] = None
     ) -> PackageEntry:
         """Backup a single package (all its APKs)."""
+        # Check if package should be backed up
+        if not self._should_backup_package(package):
+            return PackageEntry(
+                status="SKIP",
+                message="Package excluded by filter"
+            )
+
         # Get remote APK paths
         remote_paths = await self.commands.get_package_paths(serial, package)
 
@@ -107,7 +148,10 @@ class PackageBackup:
                 message="pm path returned nothing"
             )
 
-        entry = PackageEntry(status="PENDING")
+        # Fetch display name
+        display_name = await self._fetch_display_name(serial, package)
+
+        entry = PackageEntry(status="PENDING", display_name=display_name)
         pkg_dir = apks_dir / package
         pkg_dir.mkdir(parents=True, exist_ok=True)
 

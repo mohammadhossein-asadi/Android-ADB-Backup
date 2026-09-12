@@ -249,7 +249,13 @@ class BackupEngine:
         # This will be overridden by CLI args in main
         backup_name = f"Backup_{safe_model}_{timestamp}"
 
-        self.backup_dir = self.config.backup.root / backup_name
+        # Use resolved backup root from config
+        backup_root = self.config.backup.root
+        if not backup_root.is_absolute():
+            # Should already be resolved by config.load(), but ensure
+            backup_root = self.config.backup.resolve_root()
+
+        self.backup_dir = backup_root / backup_name
 
         # Create subdirectories
         dirs = [
@@ -296,13 +302,25 @@ class BackupEngine:
 
     async def _run_backup(self) -> None:
         """Run the main backup process."""
-        # Initialize backup modules
+        # Initialize backup modules with selection config
+        pkg_selection = self.config.backup.package_selection
+        storage_selection = self.config.backup.storage_selection
+        
         pkg_backup = PackageBackup(
             self.commands,
             max_retries=self.config.backup.max_retries,
-            adb_timeout=self.config.backup.adb_timeout
+            adb_timeout=self.config.backup.adb_timeout,
+            include_patterns=pkg_selection.include_patterns,
+            exclude_patterns=pkg_selection.exclude_patterns,
+            fetch_display_names=pkg_selection.fetch_display_names
         )
-        storage_backup = StorageBackup(self.commands, max_retries=2)
+        storage_backup = StorageBackup(
+            self.commands,
+            max_retries=2,
+            include_folders=storage_selection.include_folders,
+            exclude_folders=storage_selection.exclude_folders,
+            custom_folders=storage_selection.custom_folders
+        )
 
         # List packages
         console.print("[info]Listing packages...")
@@ -343,6 +361,15 @@ class BackupEngine:
                 apks_dir,
                 state_entry
             )
+
+            # Handle skipped packages
+            if result.status == "SKIP":
+                if self.progress:
+                    self.progress.increment_skip()
+                    self.progress.update_overall(idx, len(third_party))
+                self.state.packages[package] = result
+                self.state_manager.save(self.state)
+                continue
 
             self.state.packages[package] = result
             self.state.stats.total_apks += len(result.apks)

@@ -1,5 +1,6 @@
 """Storage backup module."""
 
+import fnmatch
 from pathlib import Path
 from typing import Optional
 
@@ -21,9 +22,32 @@ COMMON_FOLDERS = [
 class StorageBackup:
     """Handle storage folder backup."""
 
-    def __init__(self, commands: ADBCommands, max_retries: int = 2):
+    def __init__(
+        self,
+        commands: ADBCommands,
+        max_retries: int = 2,
+        include_folders: Optional[list[str]] = None,
+        exclude_folders: Optional[list[str]] = None,
+        custom_folders: Optional[list[tuple[str, str]]] = None
+    ):
         self.commands = commands
         self.max_retries = max_retries
+        self.include_folders = include_folders or []
+        self.exclude_folders = exclude_folders or []
+        self.custom_folders = custom_folders or []
+
+    def _should_backup_folder(self, local_name: str) -> bool:
+        """Check if a folder should be backed up based on include/exclude patterns."""
+        # If include folders specified, folder must match at least one
+        if self.include_folders:
+            matched = any(fnmatch.fnmatch(local_name, pattern) for pattern in self.include_folders)
+            if not matched:
+                return False
+        # If exclude folders specified, folder must not match any
+        if self.exclude_folders:
+            if any(fnmatch.fnmatch(local_name, pattern) for pattern in self.exclude_folders):
+                return False
+        return True
 
     async def backup_folder(
         self,
@@ -76,7 +100,18 @@ class StorageBackup:
         internal_root = storage_dir / 'Internal_Storage'
         internal_root.mkdir(parents=True, exist_ok=True)
 
+        # Backup common folders with filtering
         for remote, local_name in COMMON_FOLDERS:
+            if not self._should_backup_folder(local_name):
+                results[remote] = StorageEntry(success=True, skipped=True, message="excluded by filter")
+                continue
+            local_target = internal_root / local_name
+            state_entry = state.get(remote)
+            result = await self.backup_folder(serial, remote, local_target, state_entry)
+            results[remote] = result
+
+        # Backup custom folders
+        for remote, local_name in self.custom_folders:
             local_target = internal_root / local_name
             state_entry = state.get(remote)
             result = await self.backup_folder(serial, remote, local_target, state_entry)

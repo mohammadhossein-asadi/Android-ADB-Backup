@@ -66,6 +66,18 @@ class ReportGenerator:
             f"  APKs failed      : {state.stats.failed_apks}",
             f"  Total size       : {total_mb:.2f} MB ({state.stats.total_bytes} bytes)",
             "",
+            "PACKAGE DETAILS",
+            "---------------",
+        ])
+
+        # Add package details with display names
+        for package in sorted(state.packages.keys()):
+            entry = state.packages[package]
+            display_name = entry.display_name if entry.display_name else package
+            lines.append(f"  {display_name} ({package}) - {entry.status} ({len(entry.apks)} APKs)")
+
+        lines.extend([
+            "",
             "RESTORE",
             "-------",
             "  Scripts: Restore/Restore_Apps.sh/.bat  and  Restore/Restore_Files.sh/.bat",
@@ -93,7 +105,7 @@ class ReportGenerator:
 
         with csv_path.open('w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Package', 'Status', 'ApkCount', 'SuccessApks', 'FailedApks', 'Notes'])
+            writer.writerow(['Package', 'Display Name', 'Status', 'ApkCount', 'SuccessApks', 'FailedApks', 'Notes'])
 
             for package in sorted(state.packages.keys()):
                 entry = state.packages[package]
@@ -101,13 +113,16 @@ class ReportGenerator:
                 success = sum(1 for a in entry.apks if a.success)
                 failed = sum(1 for a in entry.apks if not a.success)
                 notes = entry.message.replace(',', ';') if entry.message else ""
+                display_name = entry.display_name if entry.display_name else package
 
                 # CSV injection protection
-                if package.startswith(('=', '+', '-', '@')):
-                    package = "'" + package
-                if notes.startswith(('=', '+', '-', '@')):
-                    notes = "'" + notes
+                safe_package = package
+                safe_display = display_name
+                safe_notes = notes
+                for val in [safe_package, safe_display, safe_notes]:
+                    if val.startswith(('=', '+', '-', '@')):
+                        val = "'" + val
 
-                writer.writerow([package, entry.status, apk_count, success, failed, notes])
+                writer.writerow([safe_package, safe_display, entry.status, apk_count, success, failed, safe_notes])
 
         return csv_path

@@ -11,11 +11,89 @@ except ImportError:
 
 
 @dataclass
+class PackageSelectionConfig:
+    """Package selection configuration."""
+    include_patterns: list[str] = field(default_factory=list)  # e.g., ["com.whatsapp", "com.telegram*"]
+    exclude_patterns: list[str] = field(default_factory=list)  # e.g., ["*.test", "*.debug"]
+    fetch_display_names: bool = True
+
+
+@dataclass
+class StorageSelectionConfig:
+    """Storage folder selection configuration."""
+    include_folders: list[str] = field(default_factory=list)      # e.g., ["DCIM", "Pictures*"]
+    exclude_folders: list[str] = field(default_factory=list)      # e.g., ["*cache*", "*temp*"]
+    custom_folders: list[tuple[str, str]] = field(default_factory=list)  # e.g., [("/sdcard/MyFolder", "MyFolder")]
+
+
+@dataclass
+class ScheduleConfig:
+    """Scheduling configuration (for future use)."""
+    enabled: bool = False
+    cron_expression: str = ""  # Standard cron expression
+    run_at_startup: bool = False
+    run_interval_hours: int = 0  # 0 = disabled
+
+
+@dataclass
 class BackupConfig:
     """Backup configuration."""
     root: Path = field(default_factory=lambda: Path.home() / "AndroidBackups")
     adb_timeout: int = 120
     max_retries: int = 3
+    package_selection: PackageSelectionConfig = field(default_factory=PackageSelectionConfig)
+    storage_selection: StorageSelectionConfig = field(default_factory=StorageSelectionConfig)
+    schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
+
+    def resolve_root(self, config_file_dir: Optional[Path] = None) -> Path:
+        """Resolve backup root path with project-relative fallback.
+        
+        Resolution order:
+        1. Absolute path → use as-is
+        2. Starts with ~ → expand user home
+        3. Relative path → resolve against:
+           a. Config file directory (if loaded from file)
+           b. Project root (where pyproject.toml or .git exists)
+           c. Current working directory (fallback)
+        """
+        root = self.root
+        if root.is_absolute():
+            return root.expanduser()
+        
+        # Handle tilde expansion
+        if str(root).startswith('~'):
+            return Path(root).expanduser()
+        
+        # Relative path - try to resolve against project root
+        base_dirs = []
+        
+        # 1. Config file directory
+        if config_file_dir and config_file_dir.exists():
+            base_dirs.append(config_file_dir)
+        
+        # 2. Project root (look for pyproject.toml or .git)
+        project_root = self._find_project_root()
+        if project_root:
+            base_dirs.append(project_root)
+        
+        # 3. Current working directory
+        base_dirs.append(Path.cwd())
+        
+        for base in base_dirs:
+            candidate = (base / root).resolve()
+            if candidate.exists() or base in base_dirs[:-1]:  # Allow creating in project root
+                return candidate
+        
+        # Fallback to current working directory
+        return (Path.cwd() / root).resolve()
+    
+    def _find_project_root(self) -> Optional[Path]:
+        """Find project root by looking for pyproject.toml or .git."""
+        current = Path.cwd()
+        for parent in [current] + list(current.parents):
+            if (parent / 'pyproject.toml').exists() or (parent / '.git').exists():
+                return parent
+        return None
 
 
 @dataclass
@@ -50,6 +128,8 @@ class Config:
         if config_path is None:
             config_path = Path.home() / '.config' / 'android-backup' / 'config.toml'
 
+        config_file_dir = config_path.parent if config_path.exists() else None
+
         if config_path.exists():
             try:
                 with config_path.open('rb') as f:
@@ -57,9 +137,30 @@ class Config:
 
                 if 'backup' in data:
                     b = data['backup']
-                    config.backup.root = Path(b.get('root', config.backup.root)).expanduser()
+                    config.backup.root = Path(b.get('root', config.backup.root))
                     config.backup.adb_timeout = b.get('adb_timeout', config.backup.adb_timeout)
                     config.backup.max_retries = b.get('max_retries', config.backup.max_retries)
+                    
+                    if 'package_selection' in b:
+                        ps = b['package_selection']
+                        config.backup.package_selection.include_patterns = ps.get('include_patterns', [])
+                        config.backup.package_selection.exclude_patterns = ps.get('exclude_patterns', [])
+                        config.backup.package_selection.fetch_display_names = ps.get('fetch_display_names', True)
+                    
+                    if 'storage_selection' in b:
+                        ss = b['storage_selection']
+                        config.backup.storage_selection.include_folders = ss.get('include_folders', [])
+                        config.backup.storage_selection.exclude_folders = ss.get('exclude_folders', [])
+                        # custom_folders as list of [remote, local] pairs
+                        custom = ss.get('custom_folders', [])
+                        config.backup.storage_selection.custom_folders = [tuple(c) for c in custom]
+                    
+                    if 'schedule' in b:
+                        s = b['schedule']
+                        config.backup.schedule.enabled = s.get('enabled', False)
+                        config.backup.schedule.cron_expression = s.get('cron_expression', '')
+                        config.backup.schedule.run_at_startup = s.get('run_at_startup', False)
+                        config.backup.schedule.run_interval_hours = s.get('run_interval_hours', 0)
 
                 if 'ui' in data:
                     u = data['ui']
@@ -77,6 +178,9 @@ class Config:
             except Exception:
                 pass  # Use defaults on error
 
+        # Resolve the backup root path with project-relative fallback
+        config.backup.root = config.backup.resolve_root(config_file_dir)
+
         return config
 
     def save(self, config_path: Optional[Path] = None) -> None:
@@ -92,6 +196,22 @@ class Config:
                 'root': str(self.backup.root),
                 'adb_timeout': self.backup.adb_timeout,
                 'max_retries': self.backup.max_retries,
+                'package_selection': {
+                    'include_patterns': self.backup.package_selection.include_patterns,
+                    'exclude_patterns': self.backup.package_selection.exclude_patterns,
+                    'fetch_display_names': self.backup.package_selection.fetch_display_names,
+                },
+                'storage_selection': {
+                    'include_folders': self.backup.storage_selection.include_folders,
+                    'exclude_folders': self.backup.storage_selection.exclude_folders,
+                    'custom_folders': [list(c) for c in self.backup.storage_selection.custom_folders],
+                },
+                'schedule': {
+                    'enabled': self.backup.schedule.enabled,
+                    'cron_expression': self.backup.schedule.cron_expression,
+                    'run_at_startup': self.backup.schedule.run_at_startup,
+                    'run_interval_hours': self.backup.schedule.run_interval_hours,
+                },
             },
             'ui': {
                 'theme': self.ui.theme,
@@ -118,6 +238,22 @@ class Config:
                 f"root = \"{data['backup']['root']}\"",
                 f"adb_timeout = {data['backup']['adb_timeout']}",
                 f"max_retries = {data['backup']['max_retries']}",
+                "",
+                "[backup.package_selection]",
+                f"include_patterns = {self.backup.package_selection.include_patterns}",
+                f"exclude_patterns = {self.backup.package_selection.exclude_patterns}",
+                f"fetch_display_names = {str(self.backup.package_selection.fetch_display_names).lower()}",
+                "",
+                "[backup.storage_selection]",
+                f"include_folders = {self.backup.storage_selection.include_folders}",
+                f"exclude_folders = {self.backup.storage_selection.exclude_folders}",
+                f"custom_folders = {[list(c) for c in self.backup.storage_selection.custom_folders]}",
+                "",
+                "[backup.schedule]",
+                f"enabled = {str(self.backup.schedule.enabled).lower()}",
+                f"cron_expression = \"{self.backup.schedule.cron_expression}\"",
+                f"run_at_startup = {str(self.backup.schedule.run_at_startup).lower()}",
+                f"run_interval_hours = {self.backup.schedule.run_interval_hours}",
                 "",
                 "[ui]",
                 f"theme = \"{data['ui']['theme']}\"",

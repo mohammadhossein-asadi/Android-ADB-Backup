@@ -23,6 +23,7 @@ class PackageEntry:
     status: str  # PENDING, OK, FAILED, SKIP
     message: str = ""
     apks: list[APKEntry] = field(default_factory=list)
+    display_name: str = ""  # Human-readable app name
 
 
 @dataclass
@@ -83,6 +84,7 @@ class BackupState:
                 pkg: {
                     'status': entry.status,
                     'message': entry.message,
+                    'display_name': entry.display_name,
                     'apks': [asdict(apk) for apk in entry.apks]
                 }
                 for pkg, entry in self.packages.items()
@@ -113,6 +115,7 @@ class BackupState:
             state.packages[pkg] = PackageEntry(
                 status=pkg_data['status'],
                 message=pkg_data.get('message', ''),
+                display_name=pkg_data.get('display_name', ''),
                 apks=[APKEntry(**apk) for apk in pkg_data.get('apks', [])]
             )
 
