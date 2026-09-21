@@ -23,6 +23,18 @@
 
 ---
 
+## 🖼️ Screenshots
+
+All captured from the documented CLI output (regenerate with `scripts/make-cli-screenshots.py` in the portfolio repo):
+
+| Live TUI | Dry-run plan |
+|:---:|:---:|
+| ![Live terminal UI](docs/screenshot-1.png) | ![Dry-run mode](docs/screenshot-2.png) |
+| **Auto-resume** | **Verify & structure** |
+| ![Resume interrupted backup](docs/screenshot-3.png) | ![Verify backup and structure](docs/screenshot-4.png) |
+
+---
+
 ## 🚀 Quick Start
 
 ### Installation
